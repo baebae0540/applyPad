@@ -1,0 +1,29 @@
+{
+  "name": "applypad",
+  "private": true,
+  "version": "0.1.0",
+  "description": "이직 준비 트래커 - 지원 현황, 면접 일정, 회사 메모를 한 곳에서 관리",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @applypad/api start:dev",
+    "dev:web": "pnpm --filter @applypad/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:local": "node scripts/db-local.mjs",
+    "db:migrate": "pnpm --filter @applypad/api prisma migrate dev",
+    "db:studio": "pnpm --filter @applypad/api prisma studio",
+    "db:deploy": "pnpm --filter @applypad/api exec prisma migrate deploy",
+    "demo:cleanup": "pnpm --filter @applypad/api build && pnpm --filter @applypad/api demo:cleanup",
+    "docker:build:api": "docker build -f apps/api/Dockerfile -t applypad-api .",
+    "docker:build:web": "docker build -f apps/web/Dockerfile --build-arg API_URL=http://localhost:4000 -t applypad-web ."
+  },
+  "devDependencies": {
+    "embedded-postgres": "16.14.0-beta.17"
+  }
+}

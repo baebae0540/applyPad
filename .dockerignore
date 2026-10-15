@@ -1,0 +1,28 @@
+# 빌드 컨텍스트는 저장소 루트다 (pnpm workspace 파일이 모두 필요하므로).
+# 이미지 안에서 다시 만들어지는 것들은 올리지 않는다.
+node_modules
+**/node_modules
+.git
+.next
+**/.next
+dist
+**/dist
+coverage
+**/coverage
+.pgdata
+pgdata
+apps/api/src/generated
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# 비밀 값은 절대 이미지에 들어가지 않게 한다 (.env.example만 허용)
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log
+.github
+docs
+.vscode
+.idea

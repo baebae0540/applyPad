@@ -1,0 +1,36 @@
+# Fly.io API 앱 설정.
+# 배포는 저장소 루트에서: fly deploy . --config apps/api/fly.toml
+# (dockerfile 경로는 이 파일 기준, 빌드 컨텍스트는 인자로 넘긴 ".")
+
+app = "applypad-api"
+primary_region = "nrt" # 도쿄 (한국에서 가장 가까운 리전)
+
+[build]
+  dockerfile = "Dockerfile"
+
+# 비밀이 아닌 값만 여기에 둔다.
+# DATABASE_URL / JWT_ACCESS_SECRET / GOOGLE_CLIENT_* 는 `fly secrets set`으로 넣는다.
+[env]
+  API_PORT = "4000"
+  NODE_ENV = "production"
+  COOKIE_SECURE = "true"
+  WEB_ORIGIN = "https://applypad-web.fly.dev"
+  GOOGLE_CALLBACK_URL = "https://applypad-web.fly.dev/api/auth/google/callback"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

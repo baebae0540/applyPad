@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+.turbo/
+
+# env
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# docker volumes
+pgdata/
+apps/api/src/generated/
+*.tsbuildinfo
+.pgdata/

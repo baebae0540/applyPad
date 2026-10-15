@@ -1,0 +1,35 @@
+name: Cleanup demo accounts
+
+# 둘러보기 버튼을 누를 때마다 임시 계정이 생기므로 매일 한 번 오래된 것을 지운다.
+on:
+  schedule:
+    - cron: "0 18 * * *" # 매일 03:00 KST
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: "지우지 않고 대상 수만 센다"
+        type: boolean
+        default: false
+
+jobs:
+  cleanup:
+    name: 오래된 데모 계정 정리
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @applypad/api build
+
+      - name: 정리 실행
+        run: pnpm --filter @applypad/api demo:cleanup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DRY_RUN: ${{ inputs.dryRun && '1' || '0' }}

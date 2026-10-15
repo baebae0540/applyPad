@@ -1,0 +1,36 @@
+# Fly.io 웹 앱 설정.
+# 배포는 저장소 루트에서: fly deploy . --config apps/web/fly.toml
+#
+# API_URL은 build-arg다. Next의 /api/* rewrites가 빌드 시점에 확정되므로
+# 주소가 바뀌면 재배포(재빌드)해야 한다.
+
+app = "applypad-web"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+  [build.args]
+    API_URL = "https://applypad-api.fly.dev"
+
+[env]
+  PORT = "3000"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

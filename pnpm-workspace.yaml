@@ -1,0 +1,15 @@
+packages:
+  - "apps/*"
+
+# pnpm 10은 설치 스크립트를 기본 차단하므로, 필요한 패키지만 허용한다
+onlyBuiltDependencies:
+  - "@prisma/engines"
+  - "@nestjs/core"
+  - prisma
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - "@embedded-postgres/darwin-arm64"
+  - "@embedded-postgres/darwin-x64"
+  - "@embedded-postgres/linux-x64"
+  - "@embedded-postgres/windows-x64"

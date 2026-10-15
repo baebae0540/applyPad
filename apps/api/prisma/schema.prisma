@@ -1,0 +1,171 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+// 접속 URL은 prisma.config.ts에서 DATABASE_URL로 주입한다 (Prisma 7)
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Auth ----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  avatarUrl    String?
+  // 소셜 로그인 전용 계정은 null
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts      Account[]
+  refreshTokens RefreshToken[]
+  applications  Application[]
+  tags          Tag[]
+}
+
+// 소셜 로그인 연동 (Google 등). 한 유저가 여러 provider를 연결할 수 있다.
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String // "google"
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// refresh 토큰은 해시로만 저장하고, 재발급 시 회전(rotate)한다.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------- Core ----------
+
+enum ApplicationStatus {
+  INTERESTED // 관심
+  APPLIED // 지원
+  DOCUMENT_PASSED // 서류 통과
+  INTERVIEW // 면접
+  FINAL // 최종
+  OFFER // 합격
+  REJECTED // 불합격
+}
+
+model Application {
+  id          String            @id @default(cuid())
+  userId      String
+  companyName String
+  position    String
+  status      ApplicationStatus @default(INTERESTED)
+  // 칸반 컬럼 내 정렬 순서
+  sortOrder   Int               @default(0)
+  jobUrl      String?
+  appliedAt   DateTime?
+  salaryNote  String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statusHistory StatusHistory[]
+  interviews    Interview[]
+  notes         Note[]
+  tags          ApplicationTag[]
+
+  @@index([userId, status])
+  @@index([userId, companyName])
+}
+
+// 상태 변경 이력 (타임라인). 상태가 바뀔 때마다 서버에서 자동 기록한다.
+model StatusHistory {
+  id            String             @id @default(cuid())
+  applicationId String
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  changedAt     DateTime           @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, changedAt])
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  ONSITE
+  CODING_TEST
+  OTHER
+}
+
+enum InterviewResult {
+  PENDING
+  PASSED
+  FAILED
+}
+
+model Interview {
+  id            String          @id @default(cuid())
+  applicationId String
+  scheduledAt   DateTime
+  type          InterviewType   @default(OTHER)
+  location      String?
+  result        InterviewResult @default(PENDING)
+  memo          String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([scheduledAt])
+}
+
+model Note {
+  id            String   @id @default(cuid())
+  applicationId String
+  content       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model Tag {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  color  String?
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications ApplicationTag[]
+
+  @@unique([userId, name])
+}
+
+model ApplicationTag {
+  applicationId String
+  tagId         String
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, tagId])
+  @@index([tagId])
+}
