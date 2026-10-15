@@ -1,6 +1,10 @@
 name: Deploy
 
-# main에 올라가고 CI가 통과하면 Fly.io로 배포한다. 수동 실행도 가능.
+# main에 올라가고 CI가 통과하면 운영에 반영한다. 수동 실행도 가능.
+#
+# 구성: 웹은 Vercel(Git 연동으로 자동 배포), API는 Render(Docker), DB는 Neon.
+# 이 워크플로는 **마이그레이션을 먼저 적용한 뒤** Render 배포를 시작시킨다.
+# (Render의 autoDeploy를 꺼둔 이유. 순서가 뒤집히면 새 코드가 옛 스키마를 보게 된다)
 on:
   workflow_run:
     workflows: [CI]
@@ -14,7 +18,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Fly.io 배포
+    name: 운영 배포
     runs-on: ubuntu-latest
     # CI가 실패했으면 배포하지 않는다 (수동 실행은 그대로 진행)
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
@@ -34,30 +38,25 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # 마이그레이션은 이미지가 아니라 여기서 돌린다.
-      # 운영 이미지에는 prisma CLI 실행 파일이 없고, 배포 전에 스키마를 맞춰야
-      # 새 코드가 올라간 순간 바로 동작하기 때문. (대안은 docs/DEPLOY.md 참고)
+      # Render 무료 인스턴스는 셸 접속이 안 되고 운영 이미지에 prisma CLI도 없다.
+      # 그래서 마이그레이션은 여기서 돌린다.
       - name: 마이그레이션 적용
         run: pnpm --filter @applypad/api exec prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # Render 대시보드 → 서비스 → Settings → Deploy Hook 에서 받은 URL
+      - name: API 배포 시작 (Render)
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
 
-      - name: API 배포
-        run: flyctl deploy . --config apps/api/fly.toml --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: 웹 배포
-        run: flyctl deploy . --config apps/web/fly.toml --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: 헬스체크
+      # 무료 인스턴스는 빌드 + 기동에 몇 분 걸린다. 넉넉히 기다린다.
+      - name: API 헬스체크
         run: |
-          set -e
-          curl -fsS --retry 10 --retry-delay 5 --retry-all-errors \
-            https://applypad-api.fly.dev/api/health
-          curl -fsS --retry 10 --retry-delay 5 --retry-all-errors \
-            -o /dev/null https://applypad-web.fly.dev/
+          curl -fsS --retry 30 --retry-delay 20 --retry-all-errors \
+            "${{ vars.API_BASE_URL }}/api/health"
+
+      # 웹은 Vercel이 푸시를 받아 알아서 배포한다. 여기서는 떴는지만 확인한다.
+      - name: 웹 헬스체크
+        run: |
+          curl -fsS --retry 20 --retry-delay 15 --retry-all-errors \
+            -o /dev/null "${{ vars.WEB_BASE_URL }}/"

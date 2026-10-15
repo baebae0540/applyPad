@@ -1,0 +1,46 @@
+# Render Blueprint — API(NestJS)를 무료 인스턴스에 Docker로 올린다.
+# 웹은 Vercel, DB는 Neon을 쓴다 (docs/DEPLOY.md 참고).
+#
+# 대시보드에서 "New → Blueprint"로 이 저장소를 연결하면 아래 설정대로 서비스가 만들어진다.
+# sync: false인 값은 생성 시 대시보드에서 직접 입력한다 (저장소에 비밀을 넣지 않기 위해).
+
+services:
+  - type: web
+    name: applypad-api
+    runtime: docker
+    plan: free
+    region: singapore # 무료 리전 중 한국에서 가장 가까움
+
+    # 빌드 컨텍스트는 저장소 루트다 (pnpm workspace 파일이 전부 필요)
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+
+    healthCheckPath: /api/health
+
+    # 푸시 즉시 배포하지 않는다. 마이그레이션을 먼저 돌린 뒤
+    # GitHub Actions(deploy.yml)가 deploy hook으로 배포를 시작한다.
+    autoDeploy: false
+
+    envVars:
+      # Render는 PORT를 10000으로 기대한다. 앱은 API_PORT를 읽으므로 맞춰준다.
+      - key: API_PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      # HTTPS이므로 refresh 쿠키는 secure로
+      - key: COOKIE_SECURE
+        value: true
+
+      # 아래는 대시보드에서 입력한다
+      - key: DATABASE_URL # Neon 연결 문자열 (?sslmode=require 포함)
+        sync: false
+      - key: JWT_ACCESS_SECRET # openssl rand -base64 48
+        sync: false
+      - key: WEB_ORIGIN # 예: https://apply-pad.vercel.app
+        sync: false
+      - key: GOOGLE_CALLBACK_URL # 예: https://apply-pad.vercel.app/api/auth/google/callback
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false

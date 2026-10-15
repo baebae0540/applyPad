@@ -21,7 +21,7 @@
 | DB | PostgreSQL 16 (로컬: `pnpm db:local`, embedded-postgres) |
 | 테스트 | vitest (단위 + e2e, e2e는 실제 DB 사용) |
 | 모노레포 | pnpm 10 workspace (`apps/api`, `apps/web`) |
-| 배포 | Docker(이미지 2개) + GitHub Actions + Fly.io(`nrt`), 운영 DB는 Neon 등 매니지드 → `docs/DEPLOY.md` |
+| 배포 | 무료 조합: DB **Neon** + API **Render**(Docker) + 웹 **Vercel**, CI/CD는 GitHub Actions → `docs/DEPLOY.md` |
 
 ## 로컬 실행 (터미널 3개)
 
@@ -65,13 +65,17 @@ pnpm dev:web       # 3) 웹 :3000
 - 디자인 토큰은 `src/app/globals.css`(`--background`, `--surface`, `--accent` 등, 다크 모드 포함). 한글 줄바꿈은 `word-break: keep-all`.
 - 상태 색(`src/lib/status.ts`)은 임의의 7색이 아니다. 관심~최종은 **진행 단계**라 파랑 한 색의 순차 램프(라이트는 밝음→어두움, 다크는 그 반대로 직접 고른 값), 합격·불합격은 **결과**라 초록·빨강 상태색. 처음 쓰던 7색 팔레트는 `관심↔지원`이 정상 시야에서도 구분이 어려워서(ΔE 11.8) 바꿨다. 가장 밝은 단계는 표면 대비가 3:1 미만이라 막대·점 옆에 **항상 이름과 숫자를 함께** 표시한다.
 
-### 배포 (Docker / CI / Fly.io) — 자세한 절차는 `docs/DEPLOY.md`
+### 배포 (Docker / CI / 무료 호스팅) — 자세한 절차는 `docs/DEPLOY.md`
+- **운영 구성은 Neon(DB) + Render(API, Docker) + Vercel(웹)이다.** 전부 무료 플랜. Fly.io는 2025년에 무료 티어가 없어져서 기본 경로에서 뺐지만, 유료 전환용으로 `apps/*/fly.toml`과 DEPLOY.md 6장을 남겨뒀다.
+- **Render 무료는 15분 유휴 시 멈추고 재기동에 약 1분** 걸린다. `keep-warm.yml`이 한국 09~24시에만 깨운다 (24시간 깨우면 월 750시간 한도에 붙는다).
+- **웹은 Vercel이 Next.js를 네이티브로 빌드**하므로 `apps/web/Dockerfile`은 운영에서 쓰이지 않는다. 다만 CI에서 계속 빌드 검증하니 지우지 말 것 (다른 곳으로 옮길 때 그대로 쓴다).
+- Render는 포트 10000을 기대한다. `render.yaml`에서 `API_PORT=10000`으로 맞춰뒀다.
 - **두 Dockerfile 모두 빌드 컨텍스트가 저장소 루트**다 (`docker build -f apps/api/Dockerfile .`). workspace 파일이 전부 필요하기 때문. `.dockerignore`도 루트에 하나만 있다.
 - 웹의 `API_URL`은 **build-arg**다. rewrites가 빌드 시점에 확정되므로 런타임 환경 변수로는 바뀌지 않는다. API 주소가 바뀌면 웹을 다시 빌드해야 한다.
 - 웹 이미지는 `output: "standalone"`을 쓴다. pnpm 모노레포라 `outputFileTracingRoot`를 저장소 루트로 올렸고, 그래서 엔트리가 `.next/standalone/apps/web/server.js`다. standalone은 `.next/static`을 복사하지 않으므로 Dockerfile에서 따로 넣는다.
 - API 이미지는 `pnpm deploy --prod --legacy --ignore-scripts /out`으로 운영 의존성만 추린다. `--legacy`가 없으면 pnpm 10이 거부하고, `--ignore-scripts`가 없으면 `/out`에 없는 prisma CLI로 postinstall이 돌다가 실패한다.
 - Prisma 7 + 드라이버 어댑터는 네이티브 엔진이 없다(전부 WASM). 그래서 slim 이미지에 openssl을 따로 깔지 않아도 되고 `binaryTargets`도 신경 쓸 필요가 없다.
-- **마이그레이션은 이미지가 아니라 `deploy.yml`에서 돌린다.** 운영 트리에 prisma CLI 실행 파일이 없기 때문. 이미지 안에서 돌리려면 `prisma`·`dotenv`를 dependencies로 옮기고 `prisma/`를 복사해야 한다 (DEPLOY.md에 방법 정리).
+- **마이그레이션은 호스팅이 아니라 `deploy.yml`에서 돌린다.** Render 무료는 셸 접속이 안 되고 운영 트리에 prisma CLI 실행 파일도 없기 때문. 그래서 `render.yaml`은 `autoDeploy: false`이고, CI가 마이그레이션을 끝낸 뒤 **deploy hook**으로 배포를 시작시킨다 (순서가 뒤집히면 새 코드가 옛 스키마를 본다).
 - 둘러보기 계정은 매일 `cleanup-demo.yml`이 지운다(7일 기준). 이메일 규칙은 `src/auth/demo.constants.ts` 한 곳에만 둔다.
 
 ## 인증 설계 (구현 완료)
@@ -135,20 +139,22 @@ pnpm dev:web       # 3) 웹 :3000
 - [x] 3단계: 인증(이메일 + Google) + 지원 CRUD API, e2e 27개 / 단위 17개 통과
 - [x] 4단계: Next.js 화면 (로그인/가입, 칸반 보드, 상세) — 브라우저로 가입 → 생성 → 드래그 → 새로고침 유지 → 수정 → 삭제 → 로그아웃 흐름 확인
 - [x] 5단계: 면접·메모·태그 API/화면 + 대시보드 — e2e 47개 / 단위 17개 통과, 브라우저로 면접 등록 → 보드 배지 → 대시보드 반영 확인
-- [x] 6단계(설정): Docker 이미지 2개, GitHub Actions 3종, Fly.io 설정, 데모 계정 정리 스크립트 — `docs/DEPLOY.md`
+- [x] 6단계(설정): Docker 이미지 2개, GitHub Actions 4종, Render/Vercel/Neon 설정, 데모 계정 정리 — `docs/DEPLOY.md`
+- [x] GitHub 저장소: https://github.com/baebae0540/applyPad (main, CI 통과 확인)
 - [ ] **실제 배포 실행** ← 다음 (아래 참고)
 
 ## 다음 할 일: 실제 배포
 
-코드와 설정은 다 들어갔다. 남은 건 **계정이 필요한 작업**이라 개발자가 직접 해야 한다.
-이 저장소에는 Docker도 flyctl도 설치되어 있지 않아서, 6단계 작업은 이미지를 실제로 빌드하지 않은 상태다
-(대신 이미지에 들어갈 산출물 — `pnpm deploy --prod` 트리와 `.next/standalone` — 을 로컬에서 직접 띄워 검증했다).
+코드와 설정은 다 들어갔다. 남은 건 **계정 가입이 필요한 작업**이라 개발자가 직접 해야 한다.
+이 머신에는 Docker도 설치되어 있지 않아서 이미지를 실제로 빌드해 본 적은 없다
+(대신 이미지에 들어갈 산출물 — `pnpm deploy --prod` 트리와 `.next/standalone` — 을 로컬에서 직접 띄워 검증했고,
+CI의 `docker` 잡이 푸시마다 두 이미지를 빌드한다).
 
-1. GitHub 저장소를 만들고 `git push` (로컬 저장소는 `main` 브랜치로 초기화해 둠)
-2. Neon에서 운영 DB 생성 → 연결 문자열 확보
-3. `fly apps create applypad-api applypad-web`, `fly secrets set ...` (DEPLOY.md 2.3)
-4. GitHub `production` 환경에 `FLY_API_TOKEN`, `DATABASE_URL` 등록
-5. 첫 배포 후 CI의 `docker` 잡이 통과하는지 확인 → 여기서 Dockerfile이 처음으로 실제 검증된다
+1. Neon 가입 → 프로젝트 생성 → `DATABASE_URL` 확보 (DEPLOY.md 2.1)
+2. Render 가입 → New → Blueprint로 `render.yaml` 읽히기 → 환경 변수 입력 → Deploy Hook URL 복사 (2.2)
+3. Vercel 가입 → Root Directory `apps/web`, 환경 변수 `API_URL` (2.3)
+4. GitHub `production` 환경에 secrets(`DATABASE_URL`, `RENDER_DEPLOY_HOOK_URL`) + variables(`API_BASE_URL`, `WEB_BASE_URL`) 등록 (2.4)
+5. Vercel 주소가 정해지면 Render의 `WEB_ORIGIN`·`GOOGLE_CALLBACK_URL`을 채우고 재배포
 6. Google 콘솔에 운영 콜백 URL 추가, 도메인 연결(선택)
 
 ### 남은 기능 메모 (v2 이후)

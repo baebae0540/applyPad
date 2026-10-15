@@ -154,8 +154,10 @@ applypad/
 
 ## 배포
 
-Docker 이미지 2개를 Fly.io(도쿄 리전)에 올리고, main 푸시 → CI 통과 → 자동 배포됩니다.
-앱 주소, 시크릿 설정, 마이그레이션 실행 위치, 데모 계정 정리는 [docs/DEPLOY.md](docs/DEPLOY.md)에 정리했습니다.
+무료 플랜만으로 운영합니다 — **DB는 Neon, API는 Render(Docker), 웹은 Vercel**.
+main에 푸시하면 CI 통과 후 마이그레이션 → API 배포 → 헬스체크까지 자동으로 돌아갑니다.
+계정 설정, 환경 변수, 무료 플랜의 제약(Render 콜드스타트 등), Fly.io 유료 전환 방법은
+[docs/DEPLOY.md](docs/DEPLOY.md)에 정리했습니다.
 
 ## 진행 상황
 
