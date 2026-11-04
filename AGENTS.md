@@ -16,7 +16,7 @@
 
 | 영역 | 내용 |
 | --- | --- |
-| Web | Next.js 16 (App Router, `cacheComponents` 켜짐) + React 19 + TypeScript + Tailwind CSS 4 |
+| Web | Next.js 16.4.5 (App Router, `cacheComponents` 켜짐) + React 19 + TypeScript + Tailwind CSS 4 |
 | API | NestJS 12 (ESM) + Prisma 7 (`@prisma/adapter-pg`) + class-validator + Swagger |
 | DB | PostgreSQL 16 (로컬: `pnpm db:local`, embedded-postgres) |
 | 테스트 | vitest (단위 + e2e, e2e는 실제 DB 사용) |
