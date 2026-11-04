@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { formatDate, formatMonthDay } from "@/lib/format";
 import type { Application } from "@/lib/types";
+import { TagDot } from "../ui/tag-dot";
 
 const CARD_CLASS = "flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 text-left shadow-sm";
 
@@ -27,8 +28,9 @@ function CardContent({ application }: { application: Application }) {
           {application.tags.map(({ tag }) => (
             <span
               key={tag.id}
-              className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] text-foreground"
+              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] text-foreground"
             >
+              <TagDot color={tag.color} className="size-1.5" />
               {tag.name}
             </span>
           ))}

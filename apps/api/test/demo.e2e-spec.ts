@@ -57,6 +57,8 @@ describe('Demo 둘러보기 (e2e)', () => {
 
     const tags = (await http().get('/api/tags').set(auth(token)).expect(200)).body;
     expect(tags.length).toBe(3);
+    // 샘플 태그는 색까지 채워져 있어야 화면에서 색 점이 보인다
+    expect(tags.every((tag: { color: string | null }) => /^#[0-9a-f]{6}$/i.test(tag.color ?? ''))).toBe(true);
 
     const dashboard = (await http().get('/api/dashboard').set(auth(token)).expect(200)).body;
     expect(dashboard.total).toBe(applications.length);

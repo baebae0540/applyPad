@@ -37,7 +37,12 @@ type DemoApplication = {
   tags?: string[];
 };
 
-const TAGS = ['네카라쿠배', '스타트업', '원격근무'];
+/** 색은 웹의 태그 색 프리셋(apps/web/src/lib/tag-colors.ts) 중에서 고른다 */
+const TAGS: { name: string; color: string }[] = [
+  { name: '네카라쿠배', color: '#0ea5e9' },
+  { name: '스타트업', color: '#f97316' },
+  { name: '원격근무', color: '#10b981' },
+];
 
 /** 모든 기능(칸반·타임라인·면접·메모·태그·대시보드)이 한눈에 보이도록 짠 샘플 */
 const SAMPLE: DemoApplication[] = [
@@ -167,7 +172,7 @@ export class DemoService {
       });
 
       const tags = await Promise.all(
-        TAGS.map((name) => tx.tag.create({ data: { userId: user.id, name }, select: { id: true, name: true } })),
+        TAGS.map((data) => tx.tag.create({ data: { userId: user.id, ...data }, select: { id: true, name: true } })),
       );
       const tagIdByName = new Map(tags.map((tag) => [tag.name, tag.id]));
 

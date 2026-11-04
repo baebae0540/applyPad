@@ -25,6 +25,7 @@ import {
 } from "@/lib/types";
 import { Button } from "../ui/button";
 import { ErrorBanner, FullPageSpinner } from "../ui/feedback";
+import { TagDot } from "../ui/tag-dot";
 import { INPUT_CLASS } from "../ui/text-field";
 import { CardPreview } from "./card";
 import { Column } from "./column";
@@ -211,13 +212,14 @@ export function Board() {
                 type="button"
                 aria-pressed={on}
                 onClick={() => setTagId(on ? null : tag.id)}
-                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
                   on
                     ? "border-accent bg-accent-soft font-medium text-foreground"
                     : "border-border text-muted hover:border-accent"
                 }`}
               >
-                {tag.name}{" "}
+                <TagDot color={tag.color} />
+                {tag.name}
                 <span className="text-[10px] text-muted">{tag._count.applications}</span>
               </button>
             );
